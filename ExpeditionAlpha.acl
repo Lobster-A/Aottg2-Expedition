@@ -1,42 +1,80 @@
 class Main
 {
-    # 코드 수정 필요 Character와 Player 값을 Dict에 초기화하는 형식으로 코드를 수정해야함.
+    # OnButtonClick을 팝업별로 나눠서 쓰고 싶음 미리 맵에 컴포넌트를 만들어서 컴포넌트에 코드를 저장하면 되지않을까?
     Description = "This is an Expediton Logic made by Lobster";
-    _MasterClientCharacter = List(); # 마스터 클라이언트의 Character 값
-    _MasterClientPosition = Vector3(0.0, 100, 0.0);  # 마스트 클라이언트의 벡터값 저장 변수
 
-    _Opened = false;
-    _StType = "Abnormal";
+    _MasterClientPosition = Vector3(0.0, 100, 0.0); # 방장의 위치 변수
+    _MasterClientCharacter = null;  
+
+    _MutableType = "Abnormal"; 
+
+    _TitanTypeList = List();
+    _PlayerList = List();
+    _CharacterList = List();
+    _SelectedPlayer = List();
+    _Ol = List();
+
     _TitanDirectionDict = Dict();
-    _TitanTypeDict = Dict();
-    _PlayerDict = Dict();
+
+    _AutoRespawnBool = false;
+    _Timer = 15.0;
+    _TimeLeft = 15.0;
     
     function Init() # 클래스 생성시 호출되는 함수
     {
         self.TitanPopup();
+        self.PlayerListPopup();
     }
 
     function OnPlayerSpawn(player, character) # 플레이어가 스폰되면 실행
     {
-        if(Network.IsMasterClient)
+        self._CharacterList.Add(character);
+        if(Network.MasterClient == player)
         {
-            self._MasterClientCharacter.Add(character); # MasterClient의 Character를 리스트에 초기화
-        }
+            self._MasterClientCharacter = character;
+        }   
+        
     }
 
     function OnPlayerJoin(player)
     {
+        self._PlayerList.Add(player);
+        self.UpdatePlayerList(player);
+    }
 
+    function OnPlayerLeave(player)
+    {
+        self._PlayerList.Remove(player);
     }
 
     function OnSecond()
     {
-        self._MasterClientPosition = self._MasterClientCharacter.Get(0).Position; # 1초마다  MasterClient의 위치를 _MasterClientPosition에 초기화
+        if(self._CharacterList.Contains(Network.MasterClient.Character) != null) 
+        {
+           self._MasterClientPosition = self._MasterClientCharacter.Position;  # 1초마다  방장의 위치를 _MasterClientPosition에 초기화
+        }
+
+    }
+        
+    function OnTick() 
+    {   
+        # 타이머가 0 이하가 되면 특정 함수 실행
+        if (self._AutoRespawnBool)
+        {
+            self._TimeLeft = self._TimeLeft - Time.TickTime;
+
+            # 타이머가 0 이하가 되면 모든 플레이어를 스폰
+            if (self._TimeLeft <= 0.0)
+            {
+                Game.SpawnPlayerAll(false);
+                Game.Print("모든 플레이어가 부활하였습니다.");
+                self._TimeLeft = self._Timer; # 타이머 초기화
+            }
+        }
     }
     
-    function OnFrame() 
-    {   
-        
+    function OnFrame()
+    {
         if(Network.IsMasterClient)
         {
             if(Input.GetKeyDown(KeyBindsEnum.INTERACTION_FUNCTION1)) 
@@ -49,35 +87,128 @@ class Main
                 UI.ShowPopup("PlayerList");
             }
         }
-
     }
 
-    function PlayerPopup()
+    function UpdatePlayerList(player)
     {
-        
-        UI.CreatePopup("PlayerList", "PlayerList", 300, 350);
+        for(p in self._PlayerList)
+        {
+            if(p.Name == player.Name)
+            {
+                UI.AddPopupButton("PlayerList", player.Name, player.Name);
+            }
+        }
     }
-    
+
+    function PlayerListPopup()
+    {   
+        UI.CreatePopup("PlayerList", "PlayerList", 1000, 500);
+        UI.AddPopupBottomButton("PlayerList", "Pl_AllPlayerSpawn", "All Spawn");
+        UI.AddPopupBottomButton("PlayerList", "Pl_AllPlayerTeleport", "All TP");
+        UI.AddPopupBottomButton("PlayerList", "Pl_AutoRespawn", "Auto Respawn");
+        UI.AddPopupBottomButton("PlayerList", "Pl_SpawnPlayer", "Spawn");
+        UI.AddPopupBottomButton("PlayerList", "Pl_KillPlayer", "Kill");
+        UI.AddPopupBottomButton("PlayerList", "Pl_KickPlayer", "Kick");
+        UI.AddPopupBottomButton("PlayerList", "_PlTeleportPlayer", "TP");
+        UI.AddPopupBottomButton("PlayerList", "Pl_SelectReset", "Reset");
+    }   
+
+    function PlayerListPopupButtonHandler(btn)
+    {
+        for(player in self._PlayerList)
+        {
+            if(btn == player.Name)
+            {
+                self._SelectedPlayer.Add(player);
+                for(sp in self._SelectedPlayer)
+                { 
+                    self._Ol.Add(sp.Name);
+                }
+                Game.Print(Convert.ToString(self._Ol));
+            }
+            elif(btn == "Pl_AllPlayerTeleport")
+            {
+                if(player.Character != null)
+                {
+                    player.Character.Position = self._MasterClientPosition;
+                    Game.Print("모든 플레이어가 소환되었습니다");
+                }
+            }
+        }
+        if(btn == "Pl_AllPlayerSpawn")
+        {
+            Game.SpawnPlayerAll(false);
+            Game.Print("모든 플레이어가 부활하였습니다");
+        }
+        elif(btn == "Pl_AutoRespawn")
+        {
+            # 스폰 기능 활성화/비활성화 전환
+            self._AutoRespawnBool = !self._AutoRespawnBool;
+
+            if (self._AutoRespawnBool)
+            {
+                Game.Print("15초마다 모든 플레이어가 부활합니다.");
+                self._TimeLeft = self._Timer; # 타이머 초기화
+            }
+            else
+            {
+                Game.Print("더 이상 플레이어가 부활하지 않습니다.");
+            }
+        }
+        elif(btn == "Pl_SelectReset")
+        {
+            self._SelectedPlayer.Clear();
+            Game.Print("지정 해제");
+        }
+        else
+        {   
+            for(player in self._SelectedPlayer)
+            {
+                if(btn == "Pl_SpawnPlayer")
+                {          
+                    Game.SpawnPlayer(player, false);
+                    Game.Print(player.Name + " 가 부활하였습니다.");
+                }
+                elif(btn == "Pl_KillPlayer")
+                {
+                    player.Character.GetKilled("보쿠가 키라다");
+                }
+                elif(btn == "Pl_KickPlayer")
+                {
+                    Network.KickPlayer(player, "추방");
+                    Game.Print(player.Name + " 를 추방하였습니다.");
+                }
+                elif(btn == "_PlTeleportPlayer")
+                {
+                    player.Character.Position = self._MasterClientPosition;
+                    Game.Print(player.Name + " 가 소환되었습니다.");
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+    }
+
     function TitanPopup()
     {   
-         
         _StButtonDirection = List();
         _StButtonDirectionText = List();
 
-        _StButtonTitanType = List();
         _StButtonTitanTypeText = List();
 
-        _StButtonDirection.Add("East");
-        _StButtonDirection.Add("West");
-        _StButtonDirection.Add("South");
-        _StButtonDirection.Add("North");
+        _StButtonDirection.Add("St_East");
+        _StButtonDirection.Add("St_West");
+        _StButtonDirection.Add("St_South");
+        _StButtonDirection.Add("St_North");
 
-        _StButtonTitanType.Add("Normal");
-        _StButtonTitanType.Add("Abnormal");
-        _StButtonTitanType.Add("Crawler");
-        _StButtonTitanType.Add("Jumper");
-        _StButtonTitanType.Add("Punk");
-
+        self._TitanTypeList.Add("Normal");
+        self._TitanTypeList.Add("Abnormal");
+        self._TitanTypeList.Add("Crawler");
+        self._TitanTypeList.Add("Jumper");
+        self._TitanTypeList.Add("Punk");
+        
         _StButtonDirectionText.Add("동");
         _StButtonDirectionText.Add("서");
         _StButtonDirectionText.Add("남");
@@ -89,25 +220,19 @@ class Main
         _StButtonTitanTypeText.Add("점퍼");
         _StButtonTitanTypeText.Add("펑크");
 
-        
         UI.CreatePopup("SpawnTitans", "Titan", 300, 650);
+        UI.AddPopupBottomButton("SpawnTitans", "TypeNumberReset", "Reset");
+        UI.AddPopupBottomButton("SpawnTitans", "Spawn", "Spawn");
         UI.AddPopupButtons("SpawnTitans", _StButtonDirection, _StButtonDirectionText);
-        UI.AddPopupButtons("SpawnTitans", _StButtonTitanType, _StButtonTitanTypeText);
-        UI.AddPopupBottomButton("SpawnTitans", "Reset", "초기화");
-        UI.AddPopupBottomButton("SpawnTitans", "Spawn", "소환");
+        UI.AddPopupButtons("SpawnTitans", self._TitanTypeList, _StButtonTitanTypeText);
 
         for(name in _StButtonDirection) # 각각의 Dict에 초기화
         {
             self._TitanDirectionDict.Set(name, 0);
         }
-
-        for(type in _StButtonTitanType)
-        {
-            self._TitanTypeDict.Set(type, "Abnormal");
-        }
     }
 
-    function OnButtonClick(btn) 
+    function TitanPopupButtonHandler(btn)
     {
         if(self._TitanDirectionDict.Contains(btn)) # 방위 버튼을 누를때마다 _TitanDirectionDict Dict에서 각각의 value가 1씩 더해짐
         {
@@ -116,91 +241,91 @@ class Main
             self._TitanDirectionDict.Set(btn, count);
             Game.Print(btn+" : "+count);
         }
-
-        elif(self._TitanTypeDict.Contains(btn)) # 거인 타입 선택
+        elif(self._TitanTypeList.Contains(btn)) # 거인 타입 선택
         {   
-            self._StType = btn;
-            Game.Print(self._StType);
+            self._MutableType = btn;
+            Game.Print(self._MutableType);
         }
-
-        elif(btn == "Reset") # 선택했던 거인 타입과 각 방위의 거인 소환 수를 리셋
+        elif(btn == "TypeNumberReset") # 선택했던 거인 타입과 각 방위의 거인 소환 수를 리셋
         {
             for(key in self._TitanDirectionDict.Keys)
             {
                 self._TitanDirectionDict.Set(key, 0);
             }
-            self._StType = "Abnormal";
+            self._MutableType = "Abnormal";
             Game.Print("넘버,타입,초기화");
         }
-        
         elif(btn == "Spawn")
         {
-            self.SpawnTitan(self._StType, self._MasterClientPosition);
+            self.SpawnTitan(self._MutableType, self._MasterClientPosition, self._TitanDirectionDict);
         }
-    }
-
-    function PlayerListPopup()
-    {
-
-    }
-
-    function SpawnTitan(type, McPosition) # 거인 타입 인자로 받음
-    {   
-        _Zone1 = Vector3(McPosition.X-2500, 30, McPosition.Z+2500);
-        _Zone2 = Vector3(McPosition.X+2500, 30, McPosition.Z+2500);
-        _Zone3 = Vector3(McPosition.X-2500, 30, McPosition.Z-2500);
-        _Zone4 = Vector3(McPosition.X+2500, 30, McPosition.Z-2500);
-
-        for(direction in self._TitanDirectionDict.Keys)
+        else
         {
-            if(direction == "East")
+            return;
+        }
+
+    }
+
+    function SpawnTitan(type, McPosition, TitanDirection) # 거인 타입과 방장 위치 인자로 받음
+    {   
+        _Zone1 = Vector3(McPosition.X-500, 30, McPosition.Z+500);
+        _Zone2 = Vector3(McPosition.X+500, 30, McPosition.Z+500);
+        _Zone3 = Vector3(McPosition.X-500, 30, McPosition.Z-500);
+        _Zone4 = Vector3(McPosition.X+500, 30, McPosition.Z-500);
+
+        for(direction in TitanDirection.Keys)
+        {
+            if(direction == "St_East")
             {
-                for(i in Range(0, self._TitanDirectionDict.Get(direction, 0), 1))
+                for(i in Range(0, TitanDirection.Get(direction, 0), 1))
                 {
                     Game.SpawnTitansAt(type, 1, Random.RandomVector3(_Zone2, _Zone4));
                 }
             }
 
-            elif(direction == "West")
+            elif(direction == "St_West")
             {
-                for(i in Range(0, self._TitanDirectionDict.Get(direction, 0), 1))
+                for(i in Range(0, TitanDirection.Get(direction, 0), 1))
                 {
                     Game.SpawnTitansAt(type, 1, Random.RandomVector3(_Zone1, _Zone3));
                 }
             }
 
-            elif(direction == "South")
+            elif(direction == "St_South")
             {
-                for(i in Range(0, self._TitanDirectionDict.Get(direction, 0), 1))
+                for(i in Range(0, TitanDirection.Get(direction, 0), 1))
                 {
                     Game.SpawnTitansAt(type, 1, Random.RandomVector3(_Zone3, _Zone4));
                 }
             }
 
-            elif(direction == "North")
+            elif(direction == "St_North")
             {
-                for(i in Range(0, self._TitanDirectionDict.Get(direction, 0), 1))
+                for(i in Range(0, TitanDirection.Get(direction, 0), 1))
                 {
                     Game.SpawnTitansAt(type, 1, Random.RandomVector3(_Zone1, _Zone2));
                 }
             }
         }
+    }    
+
+    function OnButtonClick(btn) 
+    {
+        parts = String.Split(btn, "_");
+        if(parts.Get(0) == "Pl")
+        {
+            self.PlayerListPopupButtonHandler(btn);
+        }
+        else
+        {
+            self.TitanPopupButtonHandler(btn);
+        }
     }
 
-    
 }
-
-
-
 
 extension KeyBindsEnum 
 {
     INTERACTION_FUNCTION1 = "Interaction/Function1";
     INTERACTION_FUNCTION2 = "Interaction/Function2";
-
-}
-
-component TitanPopup
-{
-    
 }
