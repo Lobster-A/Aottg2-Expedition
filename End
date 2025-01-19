@@ -1,0 +1,23 @@
+[33mcommit d50c37b2229de48455aab222691a76d9b1c55ec8[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m)[m
+Author: Lobster-A <wolves7738@gmail.com>
+Date:   Mon Jan 20 00:45:20 2025 +0900
+
+    팝업 클래스 형태로 정리 완료 및 텔레포트 수정 필요
+
+[33mcommit 0273a633afaa757dff362b99c990735def738394[m
+Author: Lobster-A <wolves7738@gmail.com>
+Date:   Sat Jan 18 02:24:18 2025 +0900
+
+    버튼 핸들 및 플레이어 리스트 80% 완료
+
+[33mcommit 87ae1fe1196d27967da8d48c2ff0feee6491db19[m
+Author: Lobster-A <wolves7738@gmail.com>
+Date:   Wed Jan 15 18:12:10 2025 +0900
+
+    거인 스폰 기능 완료
+
+[33mcommit 5e6a764b5fd523eba82a33326eb1cb2d7362900b[m
+Author: Lobster-A <wolves7738@gmail.com>
+Date:   Tue Jan 14 22:26:37 2025 +0900
+
+    First Write
